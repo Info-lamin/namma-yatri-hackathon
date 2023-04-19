@@ -284,7 +284,12 @@ class Message:
         return response.json()
 
 
-def incoming_message(contact, message):
+def incoming_message(contact: dict, message: dict):
+    message_keywords = ['location', 'Book a ride']
+    message_body = message.get('body', {}).get('body')
+    if message.get('content_type') == 'text':
+        if message_body not in message_keywords:
+            return None # level 01. This returns level 02
     return None
 
 
