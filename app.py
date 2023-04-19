@@ -285,9 +285,11 @@ class Message:
 
 
 def incoming_message(contact: dict, message: dict):
-    message_keywords = ['location', 'Book a ride']
-    message_body = message.get('body', {}).get('body')
+    message_keywords = ['location', 'Book a Ride']
     if message.get('content_type') == 'text':
+        message_body = message.get('body', {}).get('body')
+        if message_body == 'Book a Ride':
+            return None # level 03. This return level 04
         if message_body not in message_keywords:
             return None # level 01. This returns level 02
     return None

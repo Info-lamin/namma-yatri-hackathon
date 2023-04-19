@@ -1,0 +1,18 @@
+LEVEL 01 # User Greets
+    C --------------------> W
+    Any message that is not in the list of wordings in other levels will be considered as level 01
+        eg: Hi, Hello, ...
+LEVEL 02 # Greeting reply
+    C <-------------------- W
+    The Server Responds with a Greeting message with a list of options
+        eg: Hey there Welcome to Namma Yatri
+        Please Select an option
+        Book a Ride
+        Customer Care
+LEVEL 03 # The user Replies Book a Ride
+    C --------------------> W
+    The user clicks on an interactive button or a wa.me link button to message "Book a Ride"
+        eg: The user clicks on a wa.me link button to message
+LEVEL 04 # The server asks from location
+    The server requests the user to give their current location.
+        eg: The server sends message "Please send your current loction"
