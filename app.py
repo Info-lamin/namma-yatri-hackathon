@@ -1,9 +1,9 @@
-
 import os
-import pymongo
 import dotenv
+import pymongo
 import requests
 import datetime
+import threading
 from flask import abort
 from flask import Flask
 from flask import request
@@ -284,6 +284,10 @@ class Message:
         return response.json()
 
 
+def incoming_message(contact, message):
+    return None
+
+
 @app.route('/')
 def index():
     return 'Welcome to cashwha module.'
@@ -353,7 +357,8 @@ def send_message(received_data:dict):
             'expiration_timestamp': '1000000000',
             'update_timestamp': stamp,
             'last_incoming_msg_id': '',
-            'status': 'read'
+            'status': 'read',
+            'booking_status': 0
         }
         WHATSAPP_CONTACTS_COL.insert_one(contact)
     return 'ok'
@@ -472,7 +477,8 @@ def send_template(received_data:dict):
             'expiration_timestamp': '1000000000',
             'update_timestamp': stamp,
             'last_incoming_msg_id': '',
-            'status': 'read'
+            'status': 'read',
+            'booking_status': 0
         }
         WHATSAPP_CONTACTS_COL.insert_one(contact)
     return 'ok'
@@ -785,9 +791,16 @@ def webhook():
                         'expiration_timestamp': str(int(stamp) + 86400),
                         'update_timestamp': stamp,
                         'last_incoming_msg_id': document['message_id'],
-                        'status': 'unread'
+                        'status': 'unread',
+                        'booking_status': 0
                     }
                     WHATSAPP_CONTACTS_COL.insert_one(contact)
+                contact = WHATSAPP_CONTACTS_COL.find_one({
+                    'from_number': from_number,
+                    'number': document['to_number']
+                })
+                th = threading.Thread(target=incoming_message, args=(contact, message))
+                th.start()
         return ''
     except:
         return '' # mail payload
@@ -825,6 +838,7 @@ Contacts
 | update_timestamp     | 1234567890              |
 | last_incoming_msg_id | 'wamid.random'          |
 | status               | <'read', 'unread'>      |
+| booking_status       | <'1', '2', '3', ... >   |
 --------------------------------------------------
 
 Whatsapp Fields
