@@ -16,8 +16,8 @@ dotenv.load_dotenv()
 app = Flask(__name__)
 VERIFY_TOKEN = 'cashwha'
 MONGO_CLIENT = pymongo.MongoClient(os.getenv('MONGO_SRV'))
-WHATSAPP_MESSAGES_COL = MONGO_CLIENT["namma yatri"]["whatsapp_messages"]
-WHATSAPP_CONTACTS_COL = MONGO_CLIENT["namma yatri"]["whatsapp_contacts"]
+WHATSAPP_MESSAGES_COL = MONGO_CLIENT["namma_yatri"]["whatsapp_messages"]
+WHATSAPP_CONTACTS_COL = MONGO_CLIENT["namma_yatri"]["whatsapp_contacts"]
 whatsapp_account = {
     'ACCESS_TOKEN': os.getenv('WHATSAPP_ACCESS_TOKEN'),
     'FROM_PHONE_NUMBER_ID': os.getenv('WHATSAPP_FROM_PHONE_NUMBER_ID'),
