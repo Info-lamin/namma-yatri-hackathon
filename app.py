@@ -307,38 +307,39 @@ def incoming_message(contact: dict, message: dict):
 @app.route('/driver', methods=['GET', 'POST'])
 def driver():
     mode = request.args.get('mode')
+    method = request.method
     if mode == 'login':
-        if request.method == 'GET':
+        if method == 'GET':
             return None # login page
         else:
             return None # authenticate the login credentials
     if mode == 'register':
-        if request.method == 'GET':
+        if method == 'GET':
             return None # register page
         else:
             return None # save the driver details
     if mode == 'logout':
         return None # logout the user
-    if mode == 'rides'
+    if mode == 'rides':
         return None # respond with the list of rides available
     if mode == 'ride':
         request.args.get('ride_no')
         return None # display the ride details
     if mode == 'pick_ride':
         request.args.get('ride_no')
-        if request.method == 'POST':
+        if method == 'POST':
             return None # allocate the ride to the driver if available else return no
             # send the driver details and otp to customer
-    if mode == 'authenticate_ride'
+    if mode == 'authenticate_ride':
         request.args.get('ride_no')
-        if request.method == 'GET':
+        if method == 'GET':
             return None # return a page to enter otp
         else:
             request.args.get('otp')
             return None # authenticate otp and redirect
     if mode == 'end_ride':
         request.args.get('ride_no')
-        if request.method == 'POST'
+        if method == 'POST':
             return None # ends the ride and server requests for the feedback from customer
     return None # return home page
 
