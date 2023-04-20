@@ -285,14 +285,62 @@ class Message:
 
 
 def incoming_message(contact: dict, message: dict):
-    message_keywords = ['location', 'Book a Ride']
+    booking_status = 0
+    if message.get('content_type') == 'location':
+        if booking_status == 'awaiting from location':
+            return None # The user sends a from location and the server requests to send a to location
+        if booking_status == 'awaiting to location':
+            return None # The user sends the to location and the server initiates the order
+            # The order is sent back to the customer and sent to the drivers pool
+        return None # you have to initialise the order first to send your location
     if message.get('content_type') == 'text':
         message_body = message.get('body', {}).get('body')
         if message_body == 'Book a Ride':
-            return None # level 03. This return level 04
-        if message_body not in message_keywords:
-            return None # level 01. This returns level 02
+            return None # the server requests for the current location
+        return None # The user sent a unknown message so start with a new conversation
     return None
+
+# 1. Driver picks the order and the driver details and OTP is sent to the customer
+# 2. Driver enters the OTP from the customer to authenticate
+# 3. On successful authentication the to location is sent to the driver
+
+@app.route('/driver', methods=['GET', 'POST'])
+def driver():
+    mode = request.args.get('mode')
+    if mode == 'login':
+        if request.method == 'GET':
+            return None # login page
+        else:
+            return None # authenticate the login credentials
+    if mode == 'register':
+        if request.method == 'GET':
+            return None # register page
+        else:
+            return None # save the driver details
+    if mode == 'logout':
+        return None # logout the user
+    if mode == 'rides'
+        return None # respond with the list of rides available
+    if mode == 'ride':
+        request.args.get('ride_no')
+        return None # display the ride details
+    if mode == 'pick_ride':
+        request.args.get('ride_no')
+        if request.method == 'POST':
+            return None # allocate the ride to the driver if available else return no
+            # send the driver details and otp to customer
+    if mode == 'authenticate_ride'
+        request.args.get('ride_no')
+        if request.method == 'GET':
+            return None # return a page to enter otp
+        else:
+            request.args.get('otp')
+            return None # authenticate otp and redirect
+    if mode == 'end_ride':
+        request.args.get('ride_no')
+        if request.method == 'POST'
+            return None # ends the ride and server requests for the feedback from customer
+    return None # return home page
 
 
 @app.route('/')
@@ -300,7 +348,6 @@ def index():
     return 'Welcome to cashwha module.'
 
 
-@app.route('/send_message', methods=['POST'])
 @jsonify
 @set_creds
 @requirement('to', 'message')
