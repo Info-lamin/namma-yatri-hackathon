@@ -7,8 +7,11 @@ import threading
 from flask import abort
 from flask import Flask
 from flask import request
+from flask import session
 from bson import json_util
+from flask import redirect
 from functools import wraps
+from flask import render_template
 from flask.wrappers import Response
 from werkzeug.datastructures import ImmutableMultiDict
 
@@ -18,6 +21,8 @@ VERIFY_TOKEN = 'cashwha'
 MONGO_CLIENT = pymongo.MongoClient(os.getenv('MONGO_SRV'))
 WHATSAPP_MESSAGES_COL = MONGO_CLIENT["namma_yatri"]["whatsapp_messages"]
 WHATSAPP_CONTACTS_COL = MONGO_CLIENT["namma_yatri"]["whatsapp_contacts"]
+DRIVERS_COL = MONGO_CLIENT["namma_yatri"]["drivers"]
+
 whatsapp_account = {
     'ACCESS_TOKEN': os.getenv('WHATSAPP_ACCESS_TOKEN'),
     'FROM_PHONE_NUMBER_ID': os.getenv('WHATSAPP_FROM_PHONE_NUMBER_ID'),
@@ -285,11 +290,40 @@ class Message:
 
 
 def incoming_message(contact: dict, message: dict):
-    booking_status = 0
+    booking_status = contact.get('booking_status', {})
     if message.get('content_type') == 'location':
-        if booking_status == 'awaiting from location':
+        if booking_status.get('value') == 'awaiting from location':
+            send_message({
+                'to': contact.get('number'),
+                'message': 'Thank You sending your current location.\n\nPlease send your destination location to book your ride.',
+                'context': message.get('message_id')
+            })
+            booking_status['value'] = 'awaiting to location'
+            booking_status['data'].append(message['body'])
+            WHATSAPP_CONTACTS_COL.update_one({
+                'number': contact.get('number')
+            }, {
+                '$set': {
+                    'booking_status': booking_status
+                }
+            })
             return None # The user sends a from location and the server requests to send a to location
-        if booking_status == 'awaiting to location':
+        if booking_status.get('value') == 'awaiting to location':
+            # initiate order
+            send_message({
+                'to': contact.get('number'),
+                'message': 'Your Ride has been initialised',
+                'context': message.get('message_id')
+            })
+            booking_status['value'] = 'awaiting to location'  # change this
+            booking_status['data'].append(message['body'])
+            WHATSAPP_CONTACTS_COL.update_one({
+                'number': contact.get('number')
+            }, {
+                '$set': {
+                    'booking_status': booking_status
+                }
+            })
             return None # The user sends the to location and the server initiates the order
             # The order is sent back to the customer and sent to the drivers pool
         return None # you have to initialise the order first to send your location
@@ -310,16 +344,29 @@ def driver():
     method = request.method
     if mode == 'login':
         if method == 'GET':
-            return None # login page
+            return render_template('login.html') # login page
         else:
-            return None # authenticate the login credentials
+            username = request.form['username']
+            password = request.form['password']
+            user = DRIVERS_COL.find_one({'username': username, 'password': password})
+            if user is None:
+                return 'Invalid username or password'
+            session['logged_in'] = username
+            return redirect('/driver')# authenticate the login credentials
     if mode == 'register':
         if method == 'GET':
-            return None # register page
+            return render_template('register.html') # register page
         else:
-            return None # save the driver details
+            username = request.form['username']
+            password = request.form['password']
+            if DRIVERS_COL.find_one({'username': username}) is not None:
+                return 'Username already exists'
+            user = {'username': username, 'password': password}
+            DRIVERS_COL.insert_one(user)
+            return redirect('/driver?mode=login') # save the driver details
     if mode == 'logout':
-        return None # logout the user
+        session.pop('logged_in', None)
+        return redirect('/driver?mode=login') # logout the user
     if mode == 'rides':
         return None # respond with the list of rides available
     if mode == 'ride':
@@ -349,7 +396,6 @@ def index():
     return 'Welcome to cashwha module.'
 
 
-@jsonify
 @set_creds
 @requirement('to', 'message')
 def send_message(received_data:dict):
@@ -413,7 +459,10 @@ def send_message(received_data:dict):
             'update_timestamp': stamp,
             'last_incoming_msg_id': '',
             'status': 'read',
-            'booking_status': 0
+            'booking_status': {
+                'value': 0,
+                'data': []
+            }
         }
         WHATSAPP_CONTACTS_COL.insert_one(contact)
     return 'ok'
@@ -533,7 +582,10 @@ def send_template(received_data:dict):
             'update_timestamp': stamp,
             'last_incoming_msg_id': '',
             'status': 'read',
-            'booking_status': 0
+            'booking_status': {
+                'value': 0,
+                'data': []
+            }
         }
         WHATSAPP_CONTACTS_COL.insert_one(contact)
     return 'ok'
@@ -847,7 +899,10 @@ def webhook():
                         'update_timestamp': stamp,
                         'last_incoming_msg_id': document['message_id'],
                         'status': 'unread',
-                        'booking_status': 0
+                        'booking_status': {
+                            'value': 0,
+                            'data': []
+                        }
                     }
                     WHATSAPP_CONTACTS_COL.insert_one(contact)
                 contact = WHATSAPP_CONTACTS_COL.find_one({
@@ -893,7 +948,7 @@ Contacts
 | update_timestamp     | 1234567890              |
 | last_incoming_msg_id | 'wamid.random'          |
 | status               | <'read', 'unread'>      |
-| booking_status       | <'1', '2', '3', ... >   |
+| booking_status       | {value, data}           |
 --------------------------------------------------
 
 Whatsapp Fields
