@@ -50,10 +50,7 @@ class Message:
     def __init__(self, account) -> None:
         self.payload = {
             'messaging_product': 'whatsapp',
-            'recipient_type': 'individual',
-            'text': {
-                'preview_url': True
-            }
+            'recipient_type': 'individual'
         }
         self.to = None
         self.reply = None
@@ -69,6 +66,13 @@ class Message:
 
     def send(self):
         if self.to and self.message:
+            if self.preview_url:
+                if self.payload.get('text'):
+                    self.payload['text']['preview_url'] = True
+                else:
+                    self.payload['text'] = {
+                        'preview_url': True
+                    }
             self.payload['to'] = str(self.to)
             response = requests.post(
                 url=f"https://graph.facebook.com/v15.0/{self.account['FROM_PHONE_NUMBER_ID']}/messages",
@@ -197,6 +201,7 @@ class Message:
             }
         ]
         '''
+        self.preview_url = False
         self.message = True
         self.payload['type'] = 'interactive'
         data = dict()

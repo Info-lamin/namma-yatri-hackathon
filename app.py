@@ -18,7 +18,6 @@ from werkzeug.datastructures import ImmutableMultiDict
 
 dotenv.load_dotenv()
 app = Flask(__name__)
-VERIFY_TOKEN = 'cashwha'
 MONGO_CLIENT = pymongo.MongoClient(os.getenv('MONGO_SRV'))
 WHATSAPP_CONTACTS_COL = MONGO_CLIENT["namma_yatri"]["whatsapp_contacts"]
 RIDES_COL = MONGO_CLIENT["namma_yatri"]["rides"]
@@ -39,10 +38,13 @@ def make_order():
 
 
 def incoming_message(contact: dict, message: dict):
+    msg = Message(whatsapp_account)
+    msg.to = contact.get('number')
     booking_status = contact.get('booking_status', {})
     if message.get('content_type') == 'location':
         if booking_status.get('value') == 'awaiting from location':
-            print("Thank you please send your to location.")
+            msg.set_message('Thank you please send your to location.')
+            msg.send()
             booking_status['value'] = 'awaiting to location'
             booking_status['from'] = message['body']
             WHATSAPP_CONTACTS_COL.update_one(
@@ -57,7 +59,8 @@ def incoming_message(contact: dict, message: dict):
             )
             return None # The user sends a from location and the server requests to send a to location
         if booking_status.get('value') == 'awaiting to location':
-            print("Thank you for using Namma Yatri.\nYour ride has been scheduled and you will be notified once the ride is alotted")
+            msg.set_message('Thank you for using Namma Yatri.\nYour ride has been scheduled and you will be notified once the ride is alotted')
+            msg.send()
             booking_status['value'] = 'ride sheduled'
             booking_status['to'] = message['body']
             WHATSAPP_CONTACTS_COL.update_one(
@@ -73,12 +76,14 @@ def incoming_message(contact: dict, message: dict):
             # make_order()
             return None # The user sends the to location and the server initiates the order
             # The order is sent back to the customer and sent to the drivers pool
-        print("Kindly initiate the ride before sending your location.")
+        msg.set_message('Kindly initiate the ride before sending your location.')
+        msg.send()
         return None # you have to initialise the order first to send your location
-    if message.get('content_type') == 'text':
-        message_body = message.get('body')
+    if message.get('content_type') == 'interactive':
+        message_body = message.get('body', {}).get('list_reply', {}).get('title')
         if message_body == 'Book a Ride':
-            print('Please Send Your current Location to Book a Ride')
+            msg.set_message('Please Send Your current Location to Book a Ride')
+            msg.send()
             booking_status['value'] = 'awaiting from location'
             WHATSAPP_CONTACTS_COL.update_one(
                 {
@@ -92,9 +97,51 @@ def incoming_message(contact: dict, message: dict):
             )
             return None # the server requests for the current location
         if message_body == 'Customer Care':
-            print('You can contact Customer Care on call via +91 98765 43210\n\nThank you for using Namma Yatri. Have a nice day.')
+            msg.set_message('You can contact Customer Care on call via +91 94885 60252\n\nThank you for using Namma Yatri. Have a nice day.')
+            msg.send()
             return None
-        print('Hello Welcome to Namma Yatri. \nPlease select an option:\n\nBook a Ride\nCustomer Care')
+        if message_body == 'Reset':
+            booking_status = {'value': 0}
+            WHATSAPP_CONTACTS_COL.update_one(
+                {
+                    '_id': contact.get('_id')
+                },
+                {
+                    '$set': {
+                        'booking_status': booking_status
+                    }
+                }
+            )
+            msg.set_message('Thank You your data has been resetted.')
+            msg.send()
+            message['content_type'] = 'text'
+            msg = Message(whatsapp_account)
+            msg.to = contact.get('number')
+    if message.get('content_type') == 'text':
+        msg.set_list(
+            'Hello Welcome to Namma Yatri.', 
+            'Option', 
+            [
+                {
+                    'section_title': 'Please Select an Option',
+                    'body': [
+                        {
+                            'id': '1',
+                            'title': 'Book a Ride'
+                        },
+                        {
+                            'id': '2',
+                            'title': 'Customer Care'
+                        },
+                        {
+                            'id': '3',
+                            'title': 'Reset'
+                        }
+                    ]
+                }
+            ]
+        )
+        msg.send()
         return None # The user sent a unknown message so start with a new conversation
     return None
 
@@ -162,7 +209,7 @@ def webhook():
         token = request.args.get('hub.verify_token')
         challenge = request.args.get('hub.challenge')
         if mode and token:
-            if mode == 'subscribe' and token == VERIFY_TOKEN:
+            if mode == 'subscribe' and token == whatsapp_account['VERIFY_TOKEN']:
                 return challenge
         abort(403)
     try:
@@ -280,9 +327,9 @@ def webhook():
 
 @app.before_request
 def before_request_func():
-    if request.path not in ['/', '/cashwha/webhook']:
+    if request.path not in ['/', '/webhook']:
         if request.headers.get('X-Api-Key') != whatsapp_account['VERIFY_TOKEN']:
-            return 'Authentication Failed'
+            return 'Authentication Failed', 401
         http_args = request.get_json()
         http_args['account'] = whatsapp_account
         request.args = ImmutableMultiDict(http_args)
