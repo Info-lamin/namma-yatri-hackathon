@@ -21,7 +21,15 @@ app = Flask(__name__)
 VERIFY_TOKEN = 'cashwha'
 MONGO_CLIENT = pymongo.MongoClient(os.getenv('MONGO_SRV'))
 WHATSAPP_CONTACTS_COL = MONGO_CLIENT["namma_yatri"]["whatsapp_contacts"]
+RIDES_COL = MONGO_CLIENT["namma_yatri"]["rides"]
 DRIVERS_COL = MONGO_CLIENT["namma_yatri"]["drivers"]
+whatsapp_account = {
+    'ACCESS_TOKEN': os.getenv('WHATSAPP_ACCESS_TOKEN'),
+    'FROM_PHONE_NUMBER_ID': os.getenv('WHATSAPP_FROM_PHONE_NUMBER_ID'),
+    'WABA_ID': os.getenv('WHATSAPP_WABA_ID'),
+    'FROM_PHONE_NUMBER': os.getenv('WHATSAPP_FROM_PHONE_NUMBER'),
+    'VERIFY_TOKEN': os.getenv('WHATSAPP_VERIFY_TOKEN')
+}
 
 
 def make_order():
@@ -34,45 +42,59 @@ def incoming_message(contact: dict, message: dict):
     booking_status = contact.get('booking_status', {})
     if message.get('content_type') == 'location':
         if booking_status.get('value') == 'awaiting from location':
-            # send_message({
-            #     'to': contact.get('number'),
-            #     'message': 'Thank You sending your current location.\n\nPlease send your destination location to book your ride.',
-            #     'context': message.get('message_id')
-            # })
+            print("Thank you please send your to location.")
             booking_status['value'] = 'awaiting to location'
-            booking_status['data'].append(message['body'])
-            WHATSAPP_CONTACTS_COL.update_one({
-                'number': contact.get('number')
-            }, {
-                '$set': {
-                    'booking_status': booking_status
+            booking_status['from'] = message['body']
+            WHATSAPP_CONTACTS_COL.update_one(
+                {
+                    '_id': contact.get('_id')
+                },
+                {
+                    '$set': {
+                        'booking_status': booking_status
+                    }
                 }
-            })
+            )
             return None # The user sends a from location and the server requests to send a to location
         if booking_status.get('value') == 'awaiting to location':
-            # initiate order
-            # send_message({
-            #     'to': contact.get('number'),
-            #     'message': 'Your Ride has been initialised',
-            #     'context': message.get('message_id')
-            # })
-            booking_status['value'] = 'awaiting to location'  # change this
-            booking_status['data'].append(message['body'])
-            WHATSAPP_CONTACTS_COL.update_one({
-                'number': contact.get('number')
-            }, {
-                '$set': {
-                    'booking_status': booking_status
+            print("Thank you for using Namma Yatri.\nYour ride has been scheduled and you will be notified once the ride is alotted")
+            booking_status['value'] = 'ride sheduled'
+            booking_status['to'] = message['body']
+            WHATSAPP_CONTACTS_COL.update_one(
+                {
+                    '_id': contact.get('_id')
+                },
+                {
+                    '$set': {
+                        'booking_status': booking_status
+                    }
                 }
-            })
-            make_order()
+            )
+            # make_order()
             return None # The user sends the to location and the server initiates the order
             # The order is sent back to the customer and sent to the drivers pool
+        print("Kindly initiate the ride before sending your location.")
         return None # you have to initialise the order first to send your location
     if message.get('content_type') == 'text':
-        message_body = message.get('body', {}).get('body')
+        message_body = message.get('body')
         if message_body == 'Book a Ride':
+            print('Please Send Your current Location to Book a Ride')
+            booking_status['value'] = 'awaiting from location'
+            WHATSAPP_CONTACTS_COL.update_one(
+                {
+                    '_id': contact.get('_id')
+                },
+                {
+                    '$set': {
+                        'booking_status': booking_status
+                    }
+                }
+            )
             return None # the server requests for the current location
+        if message_body == 'Customer Care':
+            print('You can contact Customer Care on call via +91 98765 43210\n\nThank you for using Namma Yatri. Have a nice day.')
+            return None
+        print('Hello Welcome to Namma Yatri. \nPlease select an option:\n\nBook a Ride\nCustomer Care')
         return None # The user sent a unknown message so start with a new conversation
     return None
 
@@ -131,77 +153,6 @@ def driver():
         if method == 'POST':
             return None # ends the ride and server requests for the feedback from customer
     return None # return home page
-
-
-# def send_message(received_data:dict):
-#     '''
-#     {
-#         'to',
-#         'message',
-#         'context'
-#     }
-#     '''
-#     msg = Message(received_data['account'])
-#     msg.to = received_data['to']
-#     msg.set_message(received_data['message'])
-#     if received_data.get('context'):
-#         msg.set_reply(received_data['context'])
-#     response = dict(msg.send())
-#     if 'error' in response.keys():
-#         return jsonify(response)
-#     stamp = timestamp()
-#     document = {
-#         'messaging_product': response['messaging_product'],
-#         'to_number': response['contacts'][0]['wa_id'],
-#         'from_number': received_data['account']['FROM_PHONE_NUMBER'],
-#         'from_id': received_data['account']['FROM_PHONE_NUMBER_ID'],
-#         'content_type': 'text',
-#         'body': {
-#             'body': received_data['message']
-#         },
-#         'message_id': response['messages'][0]['id'],
-#         'timestamp': stamp,
-#         'message_flow': 'sent',
-#         'status': 'initiated'
-#     }
-#     if received_data.get('context'):
-#         document['context'] = received_data['context']
-#     # Contacts
-#     old_contact = WHATSAPP_CONTACTS_COL.find_one({
-#         'from_number': received_data['account']['FROM_PHONE_NUMBER'],
-#         'number': document['to_number']
-#     })
-#     if old_contact:
-#         if int(stamp) > int(old_contact['update_timestamp']):
-#             WHATSAPP_CONTACTS_COL.update_one(
-#                 {
-#                     'from_number': received_data['account']['FROM_PHONE_NUMBER'],
-#                     'number': document['to_number']
-#                 },
-#                 {
-#                     '$set': {
-#                         'update_timestamp': stamp
-#                     }
-#                 }
-#             )
-#     else:
-#         contact = {
-#             'from_number': received_data['account']['FROM_PHONE_NUMBER'],
-#             'number': document['to_number'],
-#             'display': document['to_number'],
-#             'expiration_timestamp': '1000000000',
-#             'update_timestamp': stamp,
-#             'last_incoming_msg_id': '',
-#             'status': 'read',
-#             'booking_status': {
-#                 'value': 0,
-#                 'data': []
-#             }
-#         }
-#         WHATSAPP_CONTACTS_COL.insert_one(contact)
-#     return 'ok'
-
-
 
 
 @app.route('/webhook', methods=['GET', 'POST'])
@@ -312,8 +263,7 @@ def webhook():
                         'last_incoming_msg_id': document['message_id'],
                         'status': 'unread',
                         'booking_status': {
-                            'value': 0,
-                            'data': []
+                            'value': 0
                         }
                     }
                     WHATSAPP_CONTACTS_COL.insert_one(contact)
@@ -321,7 +271,7 @@ def webhook():
                     'from_number': from_number,
                     'number': document['to_number']
                 })
-                th = threading.Thread(target=incoming_message, args=(contact, message))
+                th = threading.Thread(target=incoming_message, args=(contact, document))
                 th.start()
         return ''
     except:

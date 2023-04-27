@@ -1,18 +1,9 @@
-import os
 import datetime
 import requests
 from flask import request
 from flask import Response
 from bson import json_util
 from functools import wraps
-
-whatsapp_account = {
-    'ACCESS_TOKEN': os.getenv('WHATSAPP_ACCESS_TOKEN'),
-    'FROM_PHONE_NUMBER_ID': os.getenv('WHATSAPP_FROM_PHONE_NUMBER_ID'),
-    'WABA_ID': os.getenv('WHATSAPP_WABA_ID'),
-    'FROM_PHONE_NUMBER': os.getenv('WHATSAPP_FROM_PHONE_NUMBER'),
-    'VERIFY_TOKEN': os.getenv('WHATSAPP_VERIFY_TOKEN')
-}
 
 def timestamp(): return str(int(datetime.datetime.now().timestamp()))
 def detimestamp(stamp): return datetime.datetime.fromtimestamp(float(stamp))
