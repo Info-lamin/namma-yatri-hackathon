@@ -24,6 +24,12 @@ WHATSAPP_CONTACTS_COL = MONGO_CLIENT["namma_yatri"]["whatsapp_contacts"]
 DRIVERS_COL = MONGO_CLIENT["namma_yatri"]["drivers"]
 
 
+def make_order():
+    # create a new order and return the ride no.
+    # put the order in the drivers pool to be picked
+    return None
+
+
 def incoming_message(contact: dict, message: dict):
     booking_status = contact.get('booking_status', {})
     if message.get('content_type') == 'location':
@@ -59,6 +65,7 @@ def incoming_message(contact: dict, message: dict):
                     'booking_status': booking_status
                 }
             })
+            make_order()
             return None # The user sends the to location and the server initiates the order
             # The order is sent back to the customer and sent to the drivers pool
         return None # you have to initialise the order first to send your location
