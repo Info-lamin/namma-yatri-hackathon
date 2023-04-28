@@ -1,5 +1,7 @@
 import os
 import dotenv
+import random
+import string
 import pymongo
 import requests
 import datetime
@@ -31,10 +33,26 @@ whatsapp_account = {
 }
 
 
-def make_order():
-    # create a new order and return the ride no.
+@app.route('/')
+def index():
+    return 'Welcome to Namma Yatri.'
+
+
+def unique_order_id():
+    rand_text = ''.join(random.choices(string.digits , k=6))
+    document = RIDES_COL.find_one({'order_id': rand_text})
+    if document == None:
+        return rand_text
+    return unique_order_id()
+
+
+def make_order(booking_status):
+    # create a new order and r1eturn the ride no.
     # put the order in the drivers pool to be picked
-    return None
+    order_id = unique_order_id()
+    booking_status['order_id'] = order_id
+    RIDES_COL.insert_one(booking_status)
+    return order_id
 
 
 def incoming_message(contact: dict, message: dict):
@@ -59,7 +77,8 @@ def incoming_message(contact: dict, message: dict):
             )
             return None # The user sends a from location and the server requests to send a to location
         if booking_status.get('value') == 'awaiting to location':
-            msg.set_message('Thank you for using Namma Yatri.\nYour ride has been scheduled and you will be notified once the ride is alotted')
+            ride_no = make_order(booking_status)
+            msg.set_message(f"*Ride No. {ride_no}\nThank you for using Namma Yatri.\nYour ride has been scheduled and you will be notified once the ride is alotted.\n\n(Do not share your to location with any driver!)")
             msg.send()
             booking_status['value'] = 'ride sheduled'
             booking_status['to'] = message['body']
@@ -73,7 +92,6 @@ def incoming_message(contact: dict, message: dict):
                     }
                 }
             )
-            # make_order()
             return None # The user sends the to location and the server initiates the order
             # The order is sent back to the customer and sent to the drivers pool
         msg.set_message('Kindly initiate the ride before sending your location.')
