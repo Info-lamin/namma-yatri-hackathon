@@ -20,6 +20,7 @@ from werkzeug.datastructures import ImmutableMultiDict
 
 dotenv.load_dotenv()
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'my custom secret key'
 MONGO_CLIENT = pymongo.MongoClient(os.getenv('MONGO_SRV'))
 WHATSAPP_CONTACTS_COL = MONGO_CLIENT["namma_yatri"]["whatsapp_contacts"]
 RIDES_COL = MONGO_CLIENT["namma_yatri"]["rides"]
@@ -50,9 +51,11 @@ def make_order(booking_status):
     # create a new order and r1eturn the ride no.
     # put the order in the drivers pool to be picked
     order_id = unique_order_id()
+    otp = ''.join(random.choices(string.digits , k=5))
     booking_status['order_id'] = order_id
-    RIDES_COL.insert_one(booking_status)
-    return order_id
+    booking_status['otp'] = otp
+    RIDES_COL.insert_one(dict(booking_status))
+    return order_id, otp
 
 
 def incoming_message(contact: dict, message: dict):
@@ -77,11 +80,12 @@ def incoming_message(contact: dict, message: dict):
             )
             return None # The user sends a from location and the server requests to send a to location
         if booking_status.get('value') == 'awaiting to location':
-            ride_no = make_order(booking_status)
-            msg.set_message(f"*Ride No. {ride_no}\nThank you for using Namma Yatri.\nYour ride has been scheduled and you will be notified once the ride is alotted.\n\n(Do not share your to location with any driver!)")
-            msg.send()
-            booking_status['value'] = 'ride sheduled'
+            booking_status['value'] = 'ride scheduled'
             booking_status['to'] = message['body']
+            booking_status['contact'] = contact.get('number')
+            ride_no, otp = make_order(booking_status)
+            msg.set_message(f"*Ride No. {ride_no}*\nThank you for using Namma Yatri.\nYour ride has been scheduled and you will be notified once the ride is alotted.\n\nYour OTP is *{otp}*")
+            msg.send()
             WHATSAPP_CONTACTS_COL.update_one(
                 {
                     '_id': contact.get('_id')
@@ -99,6 +103,7 @@ def incoming_message(contact: dict, message: dict):
         return None # you have to initialise the order first to send your location
     if message.get('content_type') == 'interactive':
         message_body = message.get('body', {}).get('list_reply', {}).get('title')
+        message_id = message.get('body', {}).get('list_reply', {}).get('id', '')
         if message_body == 'Book a Ride':
             msg.set_message('Please Send Your current Location to Book a Ride')
             msg.send()
@@ -135,6 +140,18 @@ def incoming_message(contact: dict, message: dict):
             message['content_type'] = 'text'
             msg = Message(whatsapp_account)
             msg.to = contact.get('number')
+        if 'rate' in message_id:
+            _, rate, ride_no = message_id.split('_')
+            RIDES_COL.update_one(
+                {
+                    'order_id': ride_no
+                },
+                {
+                    '$set': {
+                        'rate': rate
+                    }
+                }
+            )
     if message.get('content_type') == 'text':
         msg.set_list(
             'Hello Welcome to Namma Yatri.', 
@@ -197,27 +214,89 @@ def driver():
         session.pop('logged_in', None)
         return redirect('/driver?mode=login') # logout the user
     if mode == 'rides':
-        return None # respond with the list of rides available
-    if mode == 'ride':
-        request.args.get('ride_no')
-        return None # display the ride details
+        if not session.get('logged_in'):
+            return redirect('/driver')
+        documents = RIDES_COL.find({'value': 'ride scheduled'})
+        return render_template('rides.html', documents=documents) # respond with the list of rides available
+    # if mode == 'ride':
+    #     if not session.get('logged_in'):
+    #         return redirect('/driver')
+    #     request.args.get('ride_no')
+    #     return None # display the ride details
     if mode == 'pick_ride':
-        request.args.get('ride_no')
-        if method == 'POST':
-            return None # allocate the ride to the driver if available else return no
-            # send the driver details and otp to customer
-    if mode == 'authenticate_ride':
-        request.args.get('ride_no')
-        if method == 'GET':
-            return None # return a page to enter otp
-        else:
-            request.args.get('otp')
-            return None # authenticate otp and redirect
-    if mode == 'end_ride':
-        request.args.get('ride_no')
-        if method == 'POST':
-            return None # ends the ride and server requests for the feedback from customer
-    return None # return home page
+        if not session.get('logged_in'):
+            return redirect('/driver')
+        ride_no = request.args.get('ride_no')
+        document = RIDES_COL.find_one({'order_id': ride_no})
+        if not document:
+            return 'Invalid Ride No'
+        if request.method == 'GET':
+            return render_template('ride.html', document=document)
+        otp = request.form.get('otp')
+        if document['otp'] == otp:
+            RIDES_COL.update_one(
+                {
+                    'order_id': ride_no
+                },
+                {
+                    '$set': {
+                        'value': 'ride ended'
+                    }
+                }
+            )
+            msg = Message(whatsapp_account)
+            msg.to = document['contact']
+            msg.set_list(
+                'Thank You for choosing Namma Yatri.\nWe hope you had an great experience riding.\nKindly rate this ride.', 
+                'Rate Us', 
+                [
+                    {
+                        'section_title': 'Rate Us',
+                        'body': [
+                            {
+                                'id': f"rate_5_{ride_no}",
+                                'title': '⭐⭐⭐⭐⭐'
+                            },
+                            {
+                                'id': f"rate_4_{ride_no}",
+                                'title': '⭐⭐⭐⭐'
+                            },
+                            {
+                                'id': f"rate_3_{ride_no}",
+                                'title': '⭐⭐⭐'
+                            },
+                            {
+                                'id': f"rate_2_{ride_no}",
+                                'title': '⭐⭐'
+                            },
+                            {
+                                'id': f"rate_1_{ride_no}",
+                                'title': '⭐'
+                            }
+                        ]
+                    }
+                ]
+            )
+            msg.send()
+            return 'Ride Ended Successfully'
+        return 'Invalid OTP' # allocate the ride to the driver if available else return no
+        # send the driver details and otp to customer
+    # if mode == 'authenticate_ride':
+    #     if not session.get('logged_in'):
+    #         return redirect('/driver')
+    #     request.args.get('ride_no')
+    #     if method == 'GET':
+    #         return None # return a page to enter otp
+    #     else:
+    #         request.args.get('otp')
+    #         return None # authenticate otp and redirect
+    # if mode == 'end_ride':
+    #     if not session.get('logged_in'):
+    #         return redirect('/driver')
+    #     request.args.get('ride_no')
+    #     if method == 'POST':
+    #         return None # ends the ride and server requests for the feedback from customer
+    return render_template('home.html') # return home page
 
 
 @app.route('/webhook', methods=['GET', 'POST'])
@@ -345,7 +424,7 @@ def webhook():
 
 @app.before_request
 def before_request_func():
-    if request.path not in ['/', '/webhook']:
+    if request.path not in ['/', '/webhook', '/driver']:
         if request.headers.get('X-Api-Key') != whatsapp_account['VERIFY_TOKEN']:
             return 'Authentication Failed', 401
         http_args = request.get_json()

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ride</title>
+</head>
+<body>
+    <h1>Ride No: {{ document['order_id'] }}</h1>
+    <div>
+        <div>Value: {{ document['value'] }}</div>
+        {% if document['from']['name'] %}
+            From: <a href="{{ document['from']['url'] }}">{{ document['from']['name'] }}</a>
+        {% endif %}
+        <div>From: Lat: {{ document['from']['latitude'] }}, Long: {{ document['from']['longitude'] }}</div><br>
+        <iframe src = "https://maps.google.com/maps?q={{ document['from']['latitude'] }},{{ document['from']['longitude'] }}&hl=es;z=14&amp;output=embed"></iframe><br>
+        {% if document['to']['name'] %}
+        To: <a href="{{ document['to']['url'] }}">{{ document['to']['name'] }}</a>
+        {% endif %}
+        <div>To: Lat: {{ document['to']['latitude'] }}, Long: {{ document['to']['longitude'] }}</div><br>
+        <iframe src = "https://maps.google.com/maps?q={{ document['to']['latitude'] }},{{ document['to']['longitude'] }}&hl=es;z=14&amp;output=embed"></iframe><br>
+        <form method="POST">
+            <label>OTP:</label><br>
+            <input type="text" name="otp"><br>
+            <br>
+            <input type="submit" value="End Ride"><br><br>
+        </form>
+    </div><br><br>
+</body>
+</html>

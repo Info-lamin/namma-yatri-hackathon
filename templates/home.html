@@ -8,12 +8,14 @@
 </head>
 <body>
     <h1>Home</h1>
-    {% if session.logged_in %}
+    {% if session['logged_in'] %}
         <p>You are logged in!</p>
-        <a href="/driver?mode=logout">Logout</a>
+        <a href="/driver?mode=logout">Logout</a><br><br>
+        <a href="/driver?mode=rides">Available Rides</a>
     {% else %}
         <p>You are not logged in.</p>
-        <a href="/driver?mode=login">Login</a>
+        <a href="/driver?mode=login">Login</a><br><br>
+        <a href="/driver?mode=register">Register</a>
     {% endif %}
 </body>
 </html>
