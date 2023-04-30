@@ -3,17 +3,13 @@ import dotenv
 import random
 import string
 import pymongo
-import requests
-import datetime
 import threading
 from functions import *
 from flask import abort
 from flask import Flask
 from flask import request
 from flask import session
-from bson import json_util
 from flask import redirect
-from functools import wraps
 from flask import render_template
 from flask.wrappers import Response
 from werkzeug.datastructures import ImmutableMultiDict
