@@ -32,7 +32,7 @@ whatsapp_account = {
 
 @app.route('/')
 def index():
-    return render_template('index.html', number=whatsapp_account['FROM_PHONE_NUMBER'])
+    return 'Welcome to Namma Yatri.'
 
 
 def unique_order_id():
