@@ -32,7 +32,7 @@ whatsapp_account = {
 
 @app.route('/')
 def index():
-    return redirect(f"https://api.whatsapp.com/send?phone={whatsapp_account['FROM_PHONE_NUMBER']}&text=Hi")
+    return render_template('index.html', number=whatsapp_account['FROM_PHONE_NUMBER'])
 
 
 def unique_order_id():
@@ -214,11 +214,6 @@ def driver():
             return redirect('/driver')
         documents = RIDES_COL.find({'value': 'ride scheduled'})
         return render_template('rides.html', documents=documents) # respond with the list of rides available
-    # if mode == 'ride':
-    #     if not session.get('logged_in'):
-    #         return redirect('/driver')
-    #     request.args.get('ride_no')
-    #     return None # display the ride details
     if mode == 'pick_ride':
         if not session.get('logged_in'):
             return redirect('/driver')
@@ -277,21 +272,6 @@ def driver():
             return 'Ride Ended Successfully'
         return 'Invalid OTP' # allocate the ride to the driver if available else return no
         # send the driver details and otp to customer
-    # if mode == 'authenticate_ride':
-    #     if not session.get('logged_in'):
-    #         return redirect('/driver')
-    #     request.args.get('ride_no')
-    #     if method == 'GET':
-    #         return None # return a page to enter otp
-    #     else:
-    #         request.args.get('otp')
-    #         return None # authenticate otp and redirect
-    # if mode == 'end_ride':
-    #     if not session.get('logged_in'):
-    #         return redirect('/driver')
-    #     request.args.get('ride_no')
-    #     if method == 'POST':
-    #         return None # ends the ride and server requests for the feedback from customer
     return render_template('home.html') # return home page
 
 
@@ -438,18 +418,3 @@ def after_request_func(response: Response):
         'Origin,Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,locale')
     response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     return response
-
-
-'''
-Contacts
---------------------------------------------------
-| from_number          | 919876543210            |
-| number               | 9198765432210           |
-| display              | <919876543210 | 'Name'> |
-| expiration_timestamp | 234567890               |
-| update_timestamp     | 1234567890              |
-| last_incoming_msg_id | 'wamid.random'          |
-| status               | <'read', 'unread'>      |
-| booking_status       | {value, data}           |
---------------------------------------------------
-'''
