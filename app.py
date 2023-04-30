@@ -36,7 +36,7 @@ whatsapp_account = {
 
 @app.route('/')
 def index():
-    return 'Welcome to Namma Yatri.'
+    return redirect(f"https://api.whatsapp.com/send?phone={whatsapp_account['FROM_PHONE_NUMBER']}&text=Hi")
 
 
 def unique_order_id():
