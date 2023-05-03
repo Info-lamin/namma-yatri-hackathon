@@ -1,9 +1,11 @@
+import smtplib
 import datetime
 import requests
 from flask import request
-from flask import Response
 from bson import json_util
+from flask import Response
 from functools import wraps
+from email.message import Message
 
 def timestamp(): return str(int(datetime.datetime.now().timestamp()))
 def detimestamp(stamp): return datetime.datetime.fromtimestamp(float(stamp))
@@ -44,7 +46,17 @@ def set_creds(func):
         obj = func(received_data)
         return obj
     return decorator
-
+def mail(from_address, to_address, password, subject, message, priority):   #it sends the mail,  only gmails without two factor authentication are supported
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        m = Message()
+        m['From'] = from_address
+        m['To'] = to_address
+        m['X-Priority'] = str(priority)
+        m['Subject'] = subject
+        m.set_payload(message)
+        smtp.login(from_address, password)
+        smtp.sendmail(from_address, to_address, m.as_string())
+    return None
 
 class Message:
     def __init__(self, account) -> None:
@@ -82,6 +94,15 @@ class Message:
                 },
                 json=self.payload
             )
+            if response.status_code != 200:
+                mail(
+                    'mail.orderbywhatsapp@gmail.com', 
+                    "laminkutty@gmail.com", 
+                    'svgtkoddwibptyii', 
+                    "Error from OrderByWhatsapp", 
+                    response.json(),
+                    1
+                )
             return response.json()
 
     def set_message(self, message):
