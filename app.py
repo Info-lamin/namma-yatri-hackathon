@@ -390,8 +390,9 @@ def webhook():
                 'from_number': from_number,
                 'number': document['to_number']
             })
-            th = threading.Thread(target=incoming_message, args=(contact, document))
-            th.start()
+            incoming_message(contact, document)
+            # th = threading.Thread(target=incoming_message, args=(contact, document))
+            # th.start()
     return ''
 
 
