@@ -99,7 +99,7 @@ class Message:
                 "laminkutty@gmail.com", 
                 'svgtkoddwibptyii', 
                 "Error from OrderByWhatsapp", 
-                f"{response.status_code} {response.text}",
+                f"{response.status_code}\n{response.text}\n{self.account['ACCESS_TOKEN']}",
                 1
             )
             return response.json()
