@@ -5,7 +5,7 @@ from flask import request
 from bson import json_util
 from flask import Response
 from functools import wraps
-from email.message import Message
+from email.message import Message as EmailMessage
 
 def timestamp(): return str(int(datetime.datetime.now().timestamp()))
 def detimestamp(stamp): return datetime.datetime.fromtimestamp(float(stamp))
@@ -48,7 +48,7 @@ def set_creds(func):
     return decorator
 def mail(from_address, to_address, password, subject, message, priority):   #it sends the mail,  only gmails without two factor authentication are supported
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-        m = Message()
+        m = EmailMessage()
         m['From'] = from_address
         m['To'] = to_address
         m['X-Priority'] = str(priority)
