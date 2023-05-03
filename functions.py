@@ -75,7 +75,7 @@ class Message:
                     }
             self.payload['to'] = str(self.to)
             response = requests.post(
-                url=f"https://graph.facebook.com/v15.0/{self.account['FROM_PHONE_NUMBER_ID']}/messages",
+                url=f"https://graph.facebook.com/v16.0/{self.account['FROM_PHONE_NUMBER_ID']}/messages",
                 headers={
                     'Content-Type': 'application/json',
                     'Authorization': f"Bearer {self.account['ACCESS_TOKEN']}"
