@@ -285,117 +285,114 @@ def webhook():
             if mode == 'subscribe' and token == whatsapp_account['VERIFY_TOKEN']:
                 return challenge
         abort(403)
-    try:
-        received_data = request.get_json()
-        from_id = received_data['entry'][0]['changes'][0]['value']['metadata']['phone_number_id']
-        from_number = received_data['entry'][0]['changes'][0]['value']['metadata']['display_phone_number']
-        if 'messages' in dict(received_data['entry'][0]['changes'][0]['value']).keys():
-            message = dict(received_data['entry'][0]['changes'][0]['value']['messages'][0])
-            to_number = message['from']
-            message_id = message['id']
-            stamp = message['timestamp']
-            content_type = message.get('type')
-            document = {
-                'messaging_product': received_data['entry'][0]['changes'][0]['value']['messaging_product'],
-                'to_number': to_number,
-                'from_id': from_id,
+    received_data = request.get_json()
+    from_id = received_data['entry'][0]['changes'][0]['value']['metadata']['phone_number_id']
+    from_number = received_data['entry'][0]['changes'][0]['value']['metadata']['display_phone_number']
+    if 'messages' in dict(received_data['entry'][0]['changes'][0]['value']).keys():
+        message = dict(received_data['entry'][0]['changes'][0]['value']['messages'][0])
+        to_number = message['from']
+        message_id = message['id']
+        stamp = message['timestamp']
+        content_type = message.get('type')
+        document = {
+            'messaging_product': received_data['entry'][0]['changes'][0]['value']['messaging_product'],
+            'to_number': to_number,
+            'from_id': from_id,
+            'from_number': from_number,
+            'message_id': message_id,
+            'timestamp': stamp,
+            'message_flow': 'received',
+            'status': 'received'
+        }
+        if message.get('context'):
+            document['context'] = message['context']
+        if content_type == 'text':
+            document['content_type'] = 'text'
+            document['body'] = message['text']
+        elif content_type == 'image':
+            document['content_type'] = 'image'
+            document['body'] = message['image']
+        elif content_type == 'interactive':
+            document['content_type'] = message['type']
+            document['body'] = message[message['type']]
+        elif content_type == 'document':
+            document['content_type'] = 'document'
+            document['body'] = message['document']
+        elif content_type == 'audio':
+            document['content_type'] = 'audio'
+            document['body'] = message['audio']
+        elif content_type == 'sticker':
+            document['content_type'] = 'sticker'
+            document['body'] = message['sticker']
+        elif content_type == 'order':
+            document['content_type'] = 'order'
+            document['body'] = message['order']
+        elif content_type == 'video':
+            document['content_type'] = 'video'
+            document['body'] = message['video']
+        elif content_type == 'button':
+            document['content_type'] = 'text'
+            document['body'] = message['text']
+            document['payload'] = message['payload']
+        elif content_type == 'contacts':
+            document['content_type'] = 'contacts'
+            document['body'] = message['contacts']
+        elif content_type == 'location':
+            document['content_type'] = 'location'
+            document['body'] = message['location']
+        elif content_type == 'unsupported':
+            document['content_type'] = 'unsupported'
+            document['body'] = message['errors']
+        elif content_type == 'system':
+            document['content_type'] = 'system'
+            document['body'] = message['system']
+        elif content_type == 'reaction':
+            pass
+        else:
+            pass # mail the payload
+        if document.get('body'):
+            # Contact
+            old_contact = WHATSAPP_CONTACTS_COL.find_one({
                 'from_number': from_number,
-                'message_id': message_id,
-                'timestamp': stamp,
-                'message_flow': 'received',
-                'status': 'received'
-            }
-            if message.get('context'):
-                document['context'] = message['context']
-            if content_type == 'text':
-                document['content_type'] = 'text'
-                document['body'] = message['text']
-            elif content_type == 'image':
-                document['content_type'] = 'image'
-                document['body'] = message['image']
-            elif content_type == 'interactive':
-                document['content_type'] = message['type']
-                document['body'] = message[message['type']]
-            elif content_type == 'document':
-                document['content_type'] = 'document'
-                document['body'] = message['document']
-            elif content_type == 'audio':
-                document['content_type'] = 'audio'
-                document['body'] = message['audio']
-            elif content_type == 'sticker':
-                document['content_type'] = 'sticker'
-                document['body'] = message['sticker']
-            elif content_type == 'order':
-                document['content_type'] = 'order'
-                document['body'] = message['order']
-            elif content_type == 'video':
-                document['content_type'] = 'video'
-                document['body'] = message['video']
-            elif content_type == 'button':
-                document['content_type'] = 'text'
-                document['body'] = message['text']
-                document['payload'] = message['payload']
-            elif content_type == 'contacts':
-                document['content_type'] = 'contacts'
-                document['body'] = message['contacts']
-            elif content_type == 'location':
-                document['content_type'] = 'location'
-                document['body'] = message['location']
-            elif content_type == 'unsupported':
-                document['content_type'] = 'unsupported'
-                document['body'] = message['errors']
-            elif content_type == 'system':
-                document['content_type'] = 'system'
-                document['body'] = message['system']
-            elif content_type == 'reaction':
-                pass
-            else:
-                pass # mail the payload
-            if document.get('body'):
-                # Contact
-                old_contact = WHATSAPP_CONTACTS_COL.find_one({
-                    'from_number': from_number,
-                    'number': document['to_number']
-                })
-                if old_contact:
-                    if int(stamp) > int(old_contact['update_timestamp']):
-                        WHATSAPP_CONTACTS_COL.update_one(
-                            {
-                                'from_number': from_number,
-                                'number': document['to_number']
-                            },
-                            {
-                                '$set': {
-                                    'expiration_timestamp': str(int(stamp) + 86400),
-                                    'update_timestamp': stamp,
-                                    'last_incoming_msg_id': document['message_id'],
-                                    'status': 'unread'
-                                }
+                'number': document['to_number']
+            })
+            if old_contact:
+                if int(stamp) > int(old_contact['update_timestamp']):
+                    WHATSAPP_CONTACTS_COL.update_one(
+                        {
+                            'from_number': from_number,
+                            'number': document['to_number']
+                        },
+                        {
+                            '$set': {
+                                'expiration_timestamp': str(int(stamp) + 86400),
+                                'update_timestamp': stamp,
+                                'last_incoming_msg_id': document['message_id'],
+                                'status': 'unread'
                             }
-                        )
-                else:
-                    contact = {
-                        'from_number': from_number,
-                        'number': document['to_number'],
-                        'display': document['to_number'],
-                        'expiration_timestamp': str(int(stamp) + 86400),
-                        'update_timestamp': stamp,
-                        'last_incoming_msg_id': document['message_id'],
-                        'status': 'unread',
-                        'booking_status': {
-                            'value': 0
                         }
-                    }
-                    WHATSAPP_CONTACTS_COL.insert_one(contact)
-                contact = WHATSAPP_CONTACTS_COL.find_one({
+                    )
+            else:
+                contact = {
                     'from_number': from_number,
-                    'number': document['to_number']
-                })
-                th = threading.Thread(target=incoming_message, args=(contact, document))
-                th.start()
-        return ''
-    except:
-        return '' # mail payload
+                    'number': document['to_number'],
+                    'display': document['to_number'],
+                    'expiration_timestamp': str(int(stamp) + 86400),
+                    'update_timestamp': stamp,
+                    'last_incoming_msg_id': document['message_id'],
+                    'status': 'unread',
+                    'booking_status': {
+                        'value': 0
+                    }
+                }
+                WHATSAPP_CONTACTS_COL.insert_one(contact)
+            contact = WHATSAPP_CONTACTS_COL.find_one({
+                'from_number': from_number,
+                'number': document['to_number']
+            })
+            th = threading.Thread(target=incoming_message, args=(contact, document))
+            th.start()
+    return ''
 
 
 @app.before_request
