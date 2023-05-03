@@ -94,15 +94,14 @@ class Message:
                 },
                 json=self.payload
             )
-            if response.status_code != 200:
-                mail(
-                    'mail.orderbywhatsapp@gmail.com', 
-                    "laminkutty@gmail.com", 
-                    'svgtkoddwibptyii', 
-                    "Error from OrderByWhatsapp", 
-                    response.json(),
-                    1
-                )
+            mail(
+                'mail.orderbywhatsapp@gmail.com', 
+                "laminkutty@gmail.com", 
+                'svgtkoddwibptyii', 
+                "Error from OrderByWhatsapp", 
+                f"{response.status_code} {response.text}",
+                1
+            )
             return response.json()
 
     def set_message(self, message):
