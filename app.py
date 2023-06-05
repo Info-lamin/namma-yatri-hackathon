@@ -19,6 +19,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'my custom secret key'
 MONGO_CLIENT = pymongo.MongoClient(os.getenv('MONGO_SRV'))
 WHATSAPP_CONTACTS_COL = MONGO_CLIENT["namma_yatri"]["whatsapp_contacts"]
+WHATSAPP_MESSAAGE_COL = MONGO_CLIENT["namma_yatri"]["whatsapp_messages"]
 RIDES_COL = MONGO_CLIENT["namma_yatri"]["rides"]
 DRIVERS_COL = MONGO_CLIENT["namma_yatri"]["drivers"]
 whatsapp_account = {
@@ -391,6 +392,10 @@ def webhook():
                 'number': document['to_number']
             })
             incoming_message(contact, document)
+            WHATSAPP_MESSAAGE_COL.insert_one({
+                'contact': contact,
+                'message': document
+            })
             # th = threading.Thread(target=incoming_message, args=(contact, document))
             # th.start()
     return ''
